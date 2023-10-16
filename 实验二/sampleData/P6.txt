@@ -1,5 +1,0 @@
-cpu
-io
-io
-io
-cpu

@@ -17,19 +17,52 @@ public:
     PCB(const PCB& p):PID(p.PID),name(p.name),state(p.state),PC(p.PC){}
 };
 
-int main(int argc, char* argv[]){
-    cout<<"\033[97m";
-    if(argc!=3){
-        cout<<"number of arguments is incorrect:"<<argc-1<<endl;
-        cout<<"expected number:2"<<endl;
-        //exit(-1);
-        cout<<"using defalut arguments"<<endl<<endl;
-        char defaultArgv[3][15]={"","6","sampleData"};
-        argv[1]=defaultArgv[1];
-        argv[2]=defaultArgv[2];
+void generateProgress(int k,int p,int mi,int mx,int x,int a,int b,int min_size,int max_size,double p_valid,double p_available){
+    for(int i=1;i<=k;i++){
+        string name="P"+to_string(i)+".txt";
+        string path="./data/"+name;
+        freopen(path.c_str(), "w", stdout);
+
+        int y=rand()%(max_size-min_size+1)+min_size;
+        int pages=pow(2,a-x);
+        vector<int>valid,invalid;
+        set<int>valid_set;
+        for(int i=1;i<=y;i++){
+            int page=rand()%pages;
+            if(valid_set.find(page)==valid_set.end())
+                valid_set.insert(page);
+            else i--;
+        }
+        for(int i=0;i<pages;i++){
+            if(valid_set.find(i)==valid_set.end())
+                invalid.push_back(i);
+            else valid.push_back(i);
+        }
+
+        cout<<y;
+        for(auto it:valid) cout<<" "<<it;
+        cout<<endl;
+        int num=mi+rand()%(mx-mi+1);
+        int max_offset=pow(2,x);
+        for(int j=1;j<=num;j++){
+            if(rand()%101<=p) cout<<"cpu\t";
+            else cout<<"io\t";
+
+            int num_a=a/4+(a%4!=0);
+            int addr=0;
+            if((double)rand()/RAND_MAX<=p_valid)
+                addr+=valid[rand()%valid.size()]*pow(2,x);
+            else addr+=invalid[rand()%invalid.size()]*pow(2,x);
+            addr+=rand()%max_offset;
+            cout<<hex<<uppercase<<setw(num_a)<<setfill('0')<<addr<<dec<<endl;
+        }
+        freopen("CONOUT$", "w", stdout);
     }
-    int k=atoi(argv[1]);
-    string data=string(argv[2]);
+}
+
+
+
+void scheduleProgress(int k){
     vector<vector<string>>cmd;
     vector<PCB>PCBs;
     queue<PCB>readyList,runList,waitingList,doneList;
@@ -37,7 +70,7 @@ int main(int argc, char* argv[]){
     const string TAB="\t";
     for(int i=0;i<k;i++){
         string name="P"+to_string(i+1)+".txt";
-        string path="./"+data+"/"+name;
+        string path="./data/"+name;
         ifstream input(path.c_str(),ios::in);
         if(!input){
             cout<<"open file error"<<endl;
@@ -149,5 +182,44 @@ int main(int argc, char* argv[]){
     printf("Status: CPU Busy %d (%.2f\%)\n",cntCPU,cntCPU*100.0/time);
     printf("Status: IO Busy %d (%.2f\%)\n",cntIOs,cntIOs*100.0/time);
     cout<<"\033[0m";
+}
+
+
+
+
+int main(int argc, char* argv[]){
+    srand((unsigned)time(NULL));
+    cout<<"\033[97m";
+    if(argc!=12){
+        cout<<"number of arguments is incorrect:"<<argc-1<<endl;
+        cout<<"expected number:11"<<endl;
+        exit(-1);
+        //3 80 5 10 12 16 18 3 7 0.8 0.85
+    }
+    int k=atoi(argv[1]);
+    int p=atoi(argv[2]);
+    int mi=atoi(argv[3]);
+    int mx=atoi(argv[4]);
+    int x=atoi(argv[5]);
+    int a=atoi(argv[6]);
+    int b=atoi(argv[7]);
+    int min_size=atoi(argv[8]);
+    int max_size=atoi(argv[9]);
+    double p_valid=atof(argv[10]);
+    double p_available=atof(argv[11]);
+    cout<<"arguments are"<<endl
+        <<"k="<<k<<endl
+        <<"persent="<<p<<endl
+        <<"min="<<mi<<endl
+        <<"max="<<mx<<endl
+        <<"x="<<x<<endl
+        <<"a="<<a<<endl
+        <<"b="<<b<<endl
+        <<"min_size="<<min_size<<endl
+        <<"max_size="<<max_size<<endl
+        <<"p_valid="<<p_valid<<endl
+        <<"p_available="<<p_available<<endl;
+    generateProgress(k,p,mi,mx,x,a,b,min_size,max_size,p_valid,p_available);
+    //scheduleProgress(k);
     return 0;
 }
