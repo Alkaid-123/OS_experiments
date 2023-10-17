@@ -1,0 +1,11 @@
+7 0 1 5 7 8 11 12
+cpu	B8C8
+cpu	1FC5
+cpu	1C8F
+io	07A1
+cpu	5FFB
+cpu	E872
+cpu	CF4A
+cpu	5406
+cpu	CF7F
+io	7234

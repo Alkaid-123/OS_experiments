@@ -64,7 +64,7 @@ int main(int argc, char* argv[]){
             if(rand()%101<=p) cout<<"cpu\t";
             else cout<<"io\t";
 
-            int num_o=(a-b)/4+((a-b)%4!=0);
+            int num_o=(a-x)/4+((a-x)%4!=0);
             int num_x=x/4+(x%4!=0);
             if((double)rand()/RAND_MAX<=p_valid)
                 cout<<hex<<uppercase<<setw(num_o)<<setfill('0')<<valid[rand()%valid.size()];

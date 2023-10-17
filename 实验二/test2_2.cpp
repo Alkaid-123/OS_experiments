@@ -80,14 +80,19 @@ void generateProgress(int k,int p,int mi,int mx,int x,int a,int b,int min_size,i
 
 void scheduleProgress(int k,int x,int a,int b){
     vector<vector<string>>cmds;//commands
-    vector<vector<int>>vaddrs;//virtual addresses
+    vector<vector<int>>vAddrs;//virtual addresses
     vector<PCB>PCBs;
     vector<vector<pageTableItem>>pageTables;
     queue<PCB>readyList,runList,waitingList,doneList;
     queue<int>timeList;
+    int vAddr,pAddr,offset;
+    
     const string TAB="\t";
     int num_v=pow(2,a-x);//number of virtual pages
     int num_p=pow(2,b-x);//number of physical pages
+    int num_o=pow(2,x);//number of offsets
+    int num_a=a/4+(a%4!=0);
+    int num_b=b/4+(b%4!=0);
     for(int i=0;i<k;i++){
         string name="P"+to_string(i+1)+".txt";
         string path="./data/"+name;
@@ -127,7 +132,7 @@ void scheduleProgress(int k,int x,int a,int b){
             // int offset=addr%int(pow(2,x));
         }
         cmds.push_back(c);
-        vaddrs.push_back(addr);
+        vAddrs.push_back(addr);
         input.close();
 
         PCB p(i,name,"READY",0,i);
@@ -135,9 +140,10 @@ void scheduleProgress(int k,int x,int a,int b){
         readyList.push(p);
     }
     //output bitmap
+    cout<<"after loading process"<<endl;
     for(int i=0;i<num_p;i++)
         cout<<bitmap[i];
-    cout<<endl;
+    cout<<endl<<endl;
     //output pageTables
     for(int i=0;i<k;i++){
         cout<<"pageTable of P"<<i<<endl;
@@ -152,13 +158,14 @@ void scheduleProgress(int k,int x,int a,int b){
     }
 
 
-    cout<<"Time"<<TAB;
-    for(int i=0;i<k;i++) cout<<"PID:"<<i<<TAB<<TAB;
+    cout<<endl<<"Time"<<TAB;
+    for(int i=0;i<k;i++) cout<<"PID:"<<i<<TAB<<TAB<<TAB;
     cout<<"CPU"<<TAB<<"IOs";
 
     int time=0,cpu=0,ios=0,cntCPU=0,cntIOs=0;
     bool endWaiting=false;
     while(1){
+        bool error=false;
         if(time-timeList.front()==5){
             timeList.pop();
             PCB tem(waitingList.front());
@@ -168,6 +175,13 @@ void scheduleProgress(int k,int x,int a,int b){
             if(tem.PC>=cmds[tem.PID].size()){
                 doneList.push(tem);
                 PCBs[tem.PID].state="DONE";
+                //bitmap释放
+                for(int i=0;i<num_v;i++){
+                    if(pageTables[tem.ptbr][i].isValid==true){
+                        bitmap[pageTables[tem.ptbr][i].pNum]=0;
+                        pageTables[tem.ptbr][i].isValid=false;
+                    }
+                }
                 continue;
             }
             else{
@@ -190,6 +204,13 @@ void scheduleProgress(int k,int x,int a,int b){
                 doneList.push(tem);
                 PCBs[tem.PID].state="DONE";
                 cpu=0;
+                //bitmap释放
+                for(int i=0;i<num_v;i++){
+                    if(pageTables[tem.ptbr][i].isValid==true){
+                        bitmap[pageTables[tem.ptbr][i].pNum]=0;
+                        pageTables[tem.ptbr][i].isValid=false;
+                    }
+                }
                 continue;
             }
             if(cmds[tem.PID][tem.PC]=="cpu")
@@ -198,6 +219,13 @@ void scheduleProgress(int k,int x,int a,int b){
                 PCBs[tem.PID].state="RUN:io";
                 timeList.push(time);
             }
+
+            vAddr=vAddrs[tem.PID][tem.PC];
+            offset=vAddr%int(pow(2,x));
+            if(pageTables[PTBR][vAddr/pow(2,x)].isValid==true)
+                pAddr=pageTables[PTBR][vAddr/pow(2,x)].pNum*pow(2,x)+offset;
+            else error=true;
+
             runList.front().PC++;
         }
         else if(!readyList.empty()){
@@ -210,9 +238,22 @@ void scheduleProgress(int k,int x,int a,int b){
                 timeList.push(time);
             }
             cpu=1;
+
+            PTBR=tem.ptbr;
+            vAddr=vAddrs[tem.PID][tem.PC];
+            offset=vAddr%num_o;
+            if(pageTables[PTBR][vAddr/num_o].isValid==true)
+                pAddr=pageTables[PTBR][vAddr/num_o].pNum*pow(2,x)+offset;
+            else error=true;
+            
+
             tem.PC++;
             runList.push(tem);
         }
+
+
+            
+
 
         cout<<endl<<++time;
         if(endWaiting){
@@ -221,17 +262,23 @@ void scheduleProgress(int k,int x,int a,int b){
         }
         cout<<TAB;
         for(int i=0;i<k;i++){
-            if(PCBs[i].state=="RUN:io")
-                cout<<"\033[96m"<<PCBs[i].state<<"\033[97m";
+            if(PCBs[i].state=="RUN:io"){
+                cout<<"\033[96m"<<PCBs[i].state<<"  \033[97m";
+                if(error) cout<<hex<<uppercase<<setfill('0')<<"\033[91m"<<setw(num_a)<<vAddr<<" error\033[97m"<<dec;
+                else cout<<hex<<uppercase<<setfill('0')<<"\033[95m["<<setw(num_a)<<vAddr<<";"<<setw(num_b)<<pAddr<<"]\033[97m"<<dec;
+            }
+            else if(PCBs[i].state=="RUN:cpu"){
+                cout<<"\033[94m"<<PCBs[i].state<<" \033[97m"; 
+                if(error) cout<<hex<<uppercase<<setfill('0')<<"\033[91m"<<setw(num_a)<<vAddr<<" error\033[97m"<<dec;
+                else cout<<hex<<uppercase<<setfill('0')<<"\033[95m["<<setw(num_a)<<vAddr<<";"<<setw(num_b)<<pAddr<<"]\033[97m"<<dec;
+            }          
             else if(PCBs[i].state=="READY")
-                cout<<"\033[93m"<<PCBs[i].state<<"\033[97m";
+                cout<<"\033[93m"<<PCBs[i].state<<"\033[97m"<<TAB<<TAB;
             else if(PCBs[i].state=="WAITING")
-                cout<<"\033[90m"<<PCBs[i].state<<"\033[97m";
-            else if(PCBs[i].state=="RUN:cpu")
-                cout<<"\033[94m"<<PCBs[i].state<<"\033[97m";
+                cout<<"\033[90m"<<PCBs[i].state<<"\033[97m"<<TAB<<TAB;
             else if(PCBs[i].state=="DONE")
-                cout<<"\033[92m"<<PCBs[i].state<<"\033[97m";
-            cout<<TAB<<TAB;
+                cout<<"\033[92m"<<PCBs[i].state<<"\033[97m"<<TAB<<TAB;
+            cout<<TAB;
         }
         if(cpu){
             cntCPU++;
@@ -243,15 +290,35 @@ void scheduleProgress(int k,int x,int a,int b){
             cout<<ios;
         }
         if(doneList.size()==k) break;
+        if(error){
+            if(PCBs[runList.front().PID].state=="RUN:io")
+                timeList.pop();
+            PCB tem=runList.front();
+            runList.pop();
+            doneList.push(tem);
+            PCBs[tem.PID].state="DONE";
+            cpu=0;
+            //bitmap释放
+            for(int i=0;i<num_v;i++){
+                if(pageTables[tem.ptbr][i].isValid==true){
+                    bitmap[pageTables[tem.ptbr][i].pNum]=0;
+                    pageTables[tem.ptbr][i].isValid=false;
+                }
+            }
+        }
     }
     printf("\n\nStatus: Total Time %d\n",time);
     printf("Status: CPU Busy %d (%.2f\%)\n",cntCPU,cntCPU*100.0/time);
     printf("Status: IO Busy %d (%.2f\%)\n",cntIOs,cntIOs*100.0/time);
-    cout<<"\033[0m";
+    
+
+    cout<<endl<<"bitmap when completed"<<endl;
+    for(int i=0;i<num_p;i++)
+        cout<<bitmap[i];
 }
 
 
-
+//TODO:bitmap的释放大量重复代码
 
 int main(int argc, char* argv[]){
     srand((unsigned)time(NULL));
@@ -273,18 +340,20 @@ int main(int argc, char* argv[]){
     int max_size=atoi(argv[9]);
     double p_valid=atof(argv[10]);
     double p_available=atof(argv[11]);
-    cout<<"arguments are"<<endl
-        <<"k="<<k<<endl
-        <<"persent="<<p<<endl
-        <<"min="<<mi<<endl
-        <<"max="<<mx<<endl
-        <<"x="<<x<<endl
-        <<"a="<<a<<endl
-        <<"b="<<b<<endl
-        <<"min_size="<<min_size<<endl
-        <<"max_size="<<max_size<<endl
-        <<"p_valid="<<p_valid<<endl
-        <<"p_available="<<p_available<<endl;
+    // cout<<"arguments are"<<endl
+    //     <<"k="<<k<<endl
+    //     <<"persent="<<p<<endl
+    //     <<"min="<<mi<<endl
+    //     <<"max="<<mx<<endl
+    //     <<"x="<<x<<endl
+    //     <<"a="<<a<<endl
+    //     <<"b="<<b<<endl
+    //     <<"min_size="<<min_size<<endl
+    //     <<"max_size="<<max_size<<endl
+    //     <<"p_valid="<<p_valid<<endl
+    //     <<"p_available="<<p_available<<endl;
+
+    cout<<endl<<"initial bitmap"<<endl;
     int num=pow(2,b-x);
     for(int i=0;i<num;i++){
         if((double)rand()/RAND_MAX<=p_available)
@@ -293,7 +362,8 @@ int main(int argc, char* argv[]){
         cout<<bitmap[i];
     }
     cout<<endl;
-    generateProgress(k,p,mi,mx,x,a,b,min_size,max_size,p_valid,p_available);
+    //generateProgress(k,p,mi,mx,x,a,b,min_size,max_size,p_valid,p_available);
     scheduleProgress(k,x,a,b);
+    cout<<"\033[0m";
     return 0;
 }

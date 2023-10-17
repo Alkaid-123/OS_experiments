@@ -1,0 +1,10 @@
+5 3 6 13 14 15
+cpu	D68C
+cpu	F252
+cpu	EA10
+cpu	D6BD
+cpu	EBC6
+cpu	3E19
+cpu	617C
+cpu	E024
+cpu	6083

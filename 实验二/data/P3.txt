@@ -1,9 +1,7 @@
-5 2 5 9 10 14
-cpu	5883
-cpu	7C39
-io	CC6C
-cpu	38F5
-cpu	AD1A
-cpu	9511
-cpu	5CC0
-cpu	5BC7
+3 5 12 13
+cpu	A3AC
+cpu	57AF
+cpu	566D
+cpu	5762
+cpu	74C9
+cpu	CBB2

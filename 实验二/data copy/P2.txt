@@ -1,0 +1,8 @@
+7 3 4 7 8 9 12 14
+io	E3CF
+cpu	7259
+cpu	C487
+cpu	3845
+cpu	3C89
+cpu	48DB
+cpu	AE14

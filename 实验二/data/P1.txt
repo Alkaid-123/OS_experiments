@@ -1,8 +1,6 @@
-6 3 5 7 10 13 14
-cpu	CFCD
-io	CBD8
-cpu	57FD
-cpu	D853
-io	7976
-cpu	8E2D
-cpu	E04A
+5 7 10 11 13 14
+io	DA1D
+cpu	E916
+io	BBC4
+cpu	7A5E
+cpu	7B8C

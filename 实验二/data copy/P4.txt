@@ -1,0 +1,11 @@
+4 0 1 2 5
+io	1E5E
+cpu	00CC
+cpu	F25C
+cpu	534B
+cpu	5426
+cpu	3331
+cpu	890A
+io	188A
+cpu	55EC
+cpu	7931

@@ -1,0 +1,7 @@
+4 0 4 5 15
+io	0776
+cpu	F5DB
+cpu	4C7C
+cpu	4AA3
+cpu	F086
+io	2DBE
