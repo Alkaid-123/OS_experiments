@@ -8,14 +8,30 @@ public:
     string name;
     string state;
     int PC;
+    int ptbr;
     PCB(){
-        PID=0,name="default",state="READY",PC=0;
+        PID=0,name="default",state="READY",PC=0,ptbr=0;
     }
-    PCB(int pid,string n,string s,int pc){
-        PID=pid,name=n,state=s,PC=pc;
+    PCB(int pid,string n,string s,int pc,int p){
+        PID=pid,name=n,state=s,PC=pc,ptbr=p;
     }
-    PCB(const PCB& p):PID(p.PID),name(p.name),state(p.state),PC(p.PC){}
+    PCB(const PCB& p):PID(p.PID),name(p.name),state(p.state),PC(p.PC),ptbr(p.ptbr){}
 };
+class pageTableItem{
+public:
+    int pNum;//physical page frame number
+    bool isValid;
+    pageTableItem(){
+        pNum=-1,isValid=false;
+    }
+    pageTableItem(int p,bool v){
+        pNum=p,isValid=v;
+    }
+    pageTableItem(const pageTableItem& p):pNum(p.pNum),isValid(p.isValid){}
+};
+
+bitset<100>bitmap;
+int PTBR=-1;
 
 void generateProgress(int k,int p,int mi,int mx,int x,int a,int b,int min_size,int max_size,double p_valid,double p_available){
     for(int i=1;i<=k;i++){
@@ -24,16 +40,16 @@ void generateProgress(int k,int p,int mi,int mx,int x,int a,int b,int min_size,i
         freopen(path.c_str(), "w", stdout);
 
         int y=rand()%(max_size-min_size+1)+min_size;
-        int pages=pow(2,a-x);
+        int num_v=pow(2,a-x);
         vector<int>valid,invalid;
         set<int>valid_set;
         for(int i=1;i<=y;i++){
-            int page=rand()%pages;
+            int page=rand()%num_v;
             if(valid_set.find(page)==valid_set.end())
                 valid_set.insert(page);
             else i--;
         }
-        for(int i=0;i<pages;i++){
+        for(int i=0;i<num_v;i++){
             if(valid_set.find(i)==valid_set.end())
                 invalid.push_back(i);
             else valid.push_back(i);
@@ -62,12 +78,16 @@ void generateProgress(int k,int p,int mi,int mx,int x,int a,int b,int min_size,i
 
 
 
-void scheduleProgress(int k){
-    vector<vector<string>>cmd;
+void scheduleProgress(int k,int x,int a,int b){
+    vector<vector<string>>cmds;//commands
+    vector<vector<int>>vaddrs;//virtual addresses
     vector<PCB>PCBs;
+    vector<vector<pageTableItem>>pageTables;
     queue<PCB>readyList,runList,waitingList,doneList;
     queue<int>timeList;
     const string TAB="\t";
+    int num_v=pow(2,a-x);//number of virtual pages
+    int num_p=pow(2,b-x);//number of physical pages
     for(int i=0;i<k;i++){
         string name="P"+to_string(i+1)+".txt";
         string path="./data/"+name;
@@ -76,16 +96,62 @@ void scheduleProgress(int k){
             cout<<"open file error"<<endl;
             exit(0);
         }
+        vector<pageTableItem>pageTable;
+        int y;
+        input>>y;
+        //TODO:应该生成2的a-x次方个页表项然后更新有效的，应该可用下标访问
+        for(int j=0;j<num_v;j++){
+            pageTableItem pti(-1,false);
+            pageTable.push_back(pti);
+        }
+        for(int j=0;j<y;j++){
+            int p;
+            input>>p;
+            pageTable[p].isValid=true;
+            for(int i=0;i<num_p;i++){
+                if(bitmap[i]==0){
+                    pageTable[p].pNum=i;
+                    bitmap[i]=1;
+                    break;
+                }
+            }
+        }
+        pageTables.push_back(pageTable);
         vector<string>c;
-        string s;
-        while(input>>s) c.push_back(s);
-        cmd.push_back(c);
+        vector<int>addr;
+        string s1,s2;
+        while(input>>s1>>s2){
+            c.push_back(s1);
+            addr.push_back(stoi(s2,0,16));
+            // int pNum=addr/pow(2,x);
+            // int offset=addr%int(pow(2,x));
+        }
+        cmds.push_back(c);
+        vaddrs.push_back(addr);
         input.close();
 
-        PCB p(i,name,"READY",0);
+        PCB p(i,name,"READY",0,i);
         PCBs.push_back(p);
         readyList.push(p);
     }
+    //output bitmap
+    for(int i=0;i<num_p;i++)
+        cout<<bitmap[i];
+    cout<<endl;
+    //output pageTables
+    for(int i=0;i<k;i++){
+        cout<<"pageTable of P"<<i<<endl;
+        for(int j=0;j<pageTables[i].size();j++){
+            cout<<j<<":";
+            if(pageTables[i][j].isValid)
+                cout<<pageTables[i][j].pNum;
+            else cout<<"-";
+            cout<<TAB;
+        }
+        cout<<endl;
+    }
+
+
     cout<<"Time"<<TAB;
     for(int i=0;i<k;i++) cout<<"PID:"<<i<<TAB<<TAB;
     cout<<"CPU"<<TAB<<"IOs";
@@ -99,7 +165,7 @@ void scheduleProgress(int k){
             waitingList.pop();
             ios--;
             endWaiting=true;
-            if(tem.PC>=cmd[tem.PID].size()){
+            if(tem.PC>=cmds[tem.PID].size()){
                 doneList.push(tem);
                 PCBs[tem.PID].state="DONE";
                 continue;
@@ -119,14 +185,14 @@ void scheduleProgress(int k){
                 ios++;
                 continue;
             }
-            if(tem.PC>=cmd[tem.PID].size()){
+            if(tem.PC>=cmds[tem.PID].size()){
                 runList.pop();
                 doneList.push(tem);
                 PCBs[tem.PID].state="DONE";
                 cpu=0;
                 continue;
             }
-            if(cmd[tem.PID][tem.PC]=="cpu")
+            if(cmds[tem.PID][tem.PC]=="cpu")
                 PCBs[tem.PID].state="RUN:cpu";
             else{
                 PCBs[tem.PID].state="RUN:io";
@@ -137,7 +203,7 @@ void scheduleProgress(int k){
         else if(!readyList.empty()){
             PCB tem=readyList.front();
             readyList.pop();
-            if(cmd[tem.PID][tem.PC]=="cpu")
+            if(cmds[tem.PID][tem.PC]=="cpu")
                 PCBs[tem.PID].state="RUN:cpu";
             else{
                 PCBs[tem.PID].state="RUN:io";
@@ -219,7 +285,15 @@ int main(int argc, char* argv[]){
         <<"max_size="<<max_size<<endl
         <<"p_valid="<<p_valid<<endl
         <<"p_available="<<p_available<<endl;
+    int num=pow(2,b-x);
+    for(int i=0;i<num;i++){
+        if((double)rand()/RAND_MAX<=p_available)
+            bitmap[i]=0;
+        else bitmap[i]=1;
+        cout<<bitmap[i];
+    }
+    cout<<endl;
     generateProgress(k,p,mi,mx,x,a,b,min_size,max_size,p_valid,p_available);
-    //scheduleProgress(k);
+    scheduleProgress(k,x,a,b);
     return 0;
 }

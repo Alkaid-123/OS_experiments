@@ -1,10 +1,9 @@
-3 6 11 14
-cpu	6061
-io	6053
-cpu	B4EA
-cpu	6530
-cpu	1F77
-io	B3EC
-cpu	ED6F
-cpu	ECA2
-cpu	E940
+5 2 5 9 10 14
+cpu	5883
+cpu	7C39
+io	CC6C
+cpu	38F5
+cpu	AD1A
+cpu	9511
+cpu	5CC0
+cpu	5BC7

@@ -1,9 +1,6 @@
-7 4 5 7 8 11 13 14
-io	0FC0
-cpu	2B35
-cpu	B6FB
-cpu	D951
-cpu	89B4
-cpu	699B
-cpu	E565
-cpu	4190
+4 1 2 5 10
+cpu	155C
+cpu	131C
+io	AD4D
+cpu	AD4A
+cpu	143D
