@@ -1,7 +1,6 @@
 #include<bits/stdc++.h>
 #include<windows.h>
 using namespace std;
-
 class PCB{
 public:
     int PID;
@@ -34,7 +33,7 @@ bitset<100>bitmap;
 int PTBR=-1;
 
 void generateProgress(int k,int p,int mi,int mx,int x,int a,int b,int min_size,int max_size,double p_valid,double p_available){
-    for(int i=1;i<=k;i++){
+    for(int i=0;i<k;i++){
         string name="P"+to_string(i)+".txt";
         string path="./data/"+name;
         freopen(path.c_str(), "w", stdout);
@@ -43,16 +42,16 @@ void generateProgress(int k,int p,int mi,int mx,int x,int a,int b,int min_size,i
         int num_v=pow(2,a-x);
         vector<int>valid,invalid;
         set<int>valid_set;
-        for(int i=1;i<=y;i++){
+        for(int j=1;j<=y;j++){
             int page=rand()%num_v;
             if(valid_set.find(page)==valid_set.end())
                 valid_set.insert(page);
-            else i--;
+            else j--;
         }
-        for(int i=0;i<num_v;i++){
-            if(valid_set.find(i)==valid_set.end())
-                invalid.push_back(i);
-            else valid.push_back(i);
+        for(int j=0;j<num_v;j++){
+            if(valid_set.find(j)==valid_set.end())
+                invalid.push_back(j);
+            else valid.push_back(j);
         }
 
         cout<<y;
@@ -76,7 +75,23 @@ void generateProgress(int k,int p,int mi,int mx,int x,int a,int b,int min_size,i
     }
 }
 
-
+//bitmap释放
+void freeBitmap(int ptbr,vector<vector<pageTableItem>>&pageTables){
+    int num_v=pageTables[ptbr].size();
+    for(int i=0;i<num_v;i++){
+        if(pageTables[ptbr][i].isValid==true){
+            bitmap[pageTables[ptbr][i].pNum]=0;
+            pageTables[ptbr][i].isValid=false;
+        }
+    }
+}
+//function of virtual address to physical address
+void vAddr2pAddr(int vAddr,int& pAddr,int& offset,int num_o,vector<vector<pageTableItem>>&pageTables,bool &error){
+    offset=vAddr%num_o;
+    if(pageTables[PTBR][vAddr/num_o].isValid==true)
+        pAddr=pageTables[PTBR][vAddr/num_o].pNum*num_o+offset;
+    else error=true;
+}
 
 void scheduleProgress(int k,int x,int a,int b){
     vector<vector<string>>cmds;//commands
@@ -86,7 +101,6 @@ void scheduleProgress(int k,int x,int a,int b){
     queue<PCB>readyList,runList,waitingList,doneList;
     queue<int>timeList;
     int vAddr,pAddr,offset;
-    
     const string TAB="\t";
     int num_v=pow(2,a-x);//number of virtual pages
     int num_p=pow(2,b-x);//number of physical pages
@@ -94,7 +108,7 @@ void scheduleProgress(int k,int x,int a,int b){
     int num_a=a/4+(a%4!=0);
     int num_b=b/4+(b%4!=0);
     for(int i=0;i<k;i++){
-        string name="P"+to_string(i+1)+".txt";
+        string name="P"+to_string(i)+".txt";
         string path="./data/"+name;
         ifstream input(path.c_str(),ios::in);
         if(!input){
@@ -104,7 +118,7 @@ void scheduleProgress(int k,int x,int a,int b){
         vector<pageTableItem>pageTable;
         int y;
         input>>y;
-        //TODO:应该生成2的a-x次方个页表项然后更新有效的，应该可用下标访问
+
         for(int j=0;j<num_v;j++){
             pageTableItem pti(-1,false);
             pageTable.push_back(pti);
@@ -128,8 +142,6 @@ void scheduleProgress(int k,int x,int a,int b){
         while(input>>s1>>s2){
             c.push_back(s1);
             addr.push_back(stoi(s2,0,16));
-            // int pNum=addr/pow(2,x);
-            // int offset=addr%int(pow(2,x));
         }
         cmds.push_back(c);
         vAddrs.push_back(addr);
@@ -157,15 +169,25 @@ void scheduleProgress(int k,int x,int a,int b){
         cout<<endl;
     }
 
-
     cout<<endl<<"Time"<<TAB;
     for(int i=0;i<k;i++) cout<<"PID:"<<i<<TAB<<TAB<<TAB;
     cout<<"CPU"<<TAB<<"IOs";
 
     int time=0,cpu=0,ios=0,cntCPU=0,cntIOs=0;
     bool endWaiting=false;
+    bool error=false;
     while(1){
-        bool error=false;
+        if(error){
+            if(PCBs[runList.front().PID].state=="RUN:io")
+                timeList.pop();
+            PCB tem=runList.front();
+            runList.pop();
+            doneList.push(tem);
+            PCBs[tem.PID].state="DONE";
+            cpu=0;
+            freeBitmap(tem.ptbr,pageTables);
+            error=false;
+        }
         if(time-timeList.front()==5){
             timeList.pop();
             PCB tem(waitingList.front());
@@ -175,13 +197,7 @@ void scheduleProgress(int k,int x,int a,int b){
             if(tem.PC>=cmds[tem.PID].size()){
                 doneList.push(tem);
                 PCBs[tem.PID].state="DONE";
-                //bitmap释放
-                for(int i=0;i<num_v;i++){
-                    if(pageTables[tem.ptbr][i].isValid==true){
-                        bitmap[pageTables[tem.ptbr][i].pNum]=0;
-                        pageTables[tem.ptbr][i].isValid=false;
-                    }
-                }
+                freeBitmap(tem.ptbr,pageTables);
                 continue;
             }
             else{
@@ -204,13 +220,7 @@ void scheduleProgress(int k,int x,int a,int b){
                 doneList.push(tem);
                 PCBs[tem.PID].state="DONE";
                 cpu=0;
-                //bitmap释放
-                for(int i=0;i<num_v;i++){
-                    if(pageTables[tem.ptbr][i].isValid==true){
-                        bitmap[pageTables[tem.ptbr][i].pNum]=0;
-                        pageTables[tem.ptbr][i].isValid=false;
-                    }
-                }
+                freeBitmap(tem.ptbr,pageTables);
                 continue;
             }
             if(cmds[tem.PID][tem.PC]=="cpu")
@@ -219,13 +229,8 @@ void scheduleProgress(int k,int x,int a,int b){
                 PCBs[tem.PID].state="RUN:io";
                 timeList.push(time);
             }
-
             vAddr=vAddrs[tem.PID][tem.PC];
-            offset=vAddr%int(pow(2,x));
-            if(pageTables[PTBR][vAddr/pow(2,x)].isValid==true)
-                pAddr=pageTables[PTBR][vAddr/pow(2,x)].pNum*pow(2,x)+offset;
-            else error=true;
-
+            vAddr2pAddr(vAddr,pAddr,offset,num_o,pageTables,error);
             runList.front().PC++;
         }
         else if(!readyList.empty()){
@@ -238,22 +243,12 @@ void scheduleProgress(int k,int x,int a,int b){
                 timeList.push(time);
             }
             cpu=1;
-
             PTBR=tem.ptbr;
             vAddr=vAddrs[tem.PID][tem.PC];
-            offset=vAddr%num_o;
-            if(pageTables[PTBR][vAddr/num_o].isValid==true)
-                pAddr=pageTables[PTBR][vAddr/num_o].pNum*pow(2,x)+offset;
-            else error=true;
-            
-
+            vAddr2pAddr(vAddr,pAddr,offset,num_o,pageTables,error);
             tem.PC++;
             runList.push(tem);
         }
-
-
-            
-
 
         cout<<endl<<++time;
         if(endWaiting){
@@ -290,35 +285,15 @@ void scheduleProgress(int k,int x,int a,int b){
             cout<<ios;
         }
         if(doneList.size()==k) break;
-        if(error){
-            if(PCBs[runList.front().PID].state=="RUN:io")
-                timeList.pop();
-            PCB tem=runList.front();
-            runList.pop();
-            doneList.push(tem);
-            PCBs[tem.PID].state="DONE";
-            cpu=0;
-            //bitmap释放
-            for(int i=0;i<num_v;i++){
-                if(pageTables[tem.ptbr][i].isValid==true){
-                    bitmap[pageTables[tem.ptbr][i].pNum]=0;
-                    pageTables[tem.ptbr][i].isValid=false;
-                }
-            }
-        }
     }
     printf("\n\nStatus: Total Time %d\n",time);
     printf("Status: CPU Busy %d (%.2f\%)\n",cntCPU,cntCPU*100.0/time);
     printf("Status: IO Busy %d (%.2f\%)\n",cntIOs,cntIOs*100.0/time);
     
-
     cout<<endl<<"bitmap when completed"<<endl;
     for(int i=0;i<num_p;i++)
         cout<<bitmap[i];
 }
-
-
-//TODO:bitmap的释放大量重复代码
 
 int main(int argc, char* argv[]){
     srand((unsigned)time(NULL));
@@ -326,8 +301,9 @@ int main(int argc, char* argv[]){
     if(argc!=12){
         cout<<"number of arguments is incorrect:"<<argc-1<<endl;
         cout<<"expected number:11"<<endl;
-        exit(-1);
-        //3 80 5 10 12 16 18 3 7 0.8 0.85
+        cout<<"use default arguments"<<endl;
+        //use default arguments
+        //char* defaultArgv[12]={"","6","80","5","10","12","16","18","3","7","0.9","0.7"};
     }
     int k=atoi(argv[1]);
     int p=atoi(argv[2]);
