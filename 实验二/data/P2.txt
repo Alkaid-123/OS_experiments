@@ -1,10 +1,7 @@
-5 3 7 11 12 14
-cpu	33B6
-cpu	C18B
-io	784C
-cpu	723C
-cpu	180E
-cpu	C702
-cpu	E252
-io	93CC
-cpu	7FC0
+3 5 12 13
+cpu	A3AC
+cpu	57AF
+cpu	566D
+cpu	5762
+cpu	74C9
+cpu	CBB2

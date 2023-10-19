@@ -1,11 +1,11 @@
-7 5 9 10 11 12 13 14
-cpu	9CB6
-cpu	EE36
-io	E092
-cpu	C0C1
-cpu	97BF
-io	EF3D
-cpu	9E97
-cpu	F406
-cpu	7E17
-cpu	A95B
+7 0 1 5 7 8 11 12
+cpu	B8C8
+cpu	1FC5
+cpu	1C8F
+io	07A1
+cpu	5FFB
+cpu	E872
+cpu	CF4A
+cpu	5406
+cpu	CF7F
+io	7234
