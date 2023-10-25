@@ -80,9 +80,10 @@ void generateProgress(int k,int p,int mi,int mx,int x,int a,int b,int min_size,i
 void freeBitmap(int ptbr,vector<vector<pageTableItem>>&pageTables){
     int num_v=pageTables[ptbr].size();
     for(int i=0;i<num_v;i++){
-        if(pageTables[ptbr][i].isValid==true){
-            bitmap[pageTables[ptbr][i].pNum]=0;
-            pageTables[ptbr][i].isValid=false;
+        pageTableItem& item=pageTables[ptbr][i];
+        if(item.isValid==true&&item.isExist==true){
+            bitmap[item.pNum]=0;
+            item.isValid=false;
         }
     }
 }
@@ -97,8 +98,21 @@ void freeBitmap(int ptbr,vector<vector<pageTableItem>>&pageTables){
 //function of virtual address to physical address use bit opeartion
 void vAddr2pAddr(int vAddr,int& pAddr,int& offset,int x,vector<vector<pageTableItem>>&pageTables,bool &error){
     offset=vAddr&((1<<x)-1);
-    if(pageTables[PTBR][vAddr>>x].isValid==true)
-        pAddr=(pageTables[PTBR][vAddr>>x].pNum<<x)|offset;
+    pageTableItem& item=pageTables[PTBR][vAddr>>x];
+    if(item.isValid==true){
+        if(item.isExist==false){
+            int num_p=bitmap.size();
+            for(int i=0;i<num_p;i++){
+                if(bitmap[i]==0){
+                    bitmap[i]=1;
+                    item.pNum=i;
+                    item.isExist=true;
+                    break;
+                }
+            }
+        }
+        pAddr=(item.pNum<<x)|offset;
+    }
     else error=true;
 }
 
@@ -129,8 +143,8 @@ void scheduleProgress(int k,int x,int a,int b,int max_alloc,string mode){
         input>>y;
 
         for(int j=0;j<num_v;j++){
-            pageTableItem pti(-1,false,false);
-            pageTable.push_back(pti);
+            pageTableItem item(-1,false,false);
+            pageTable.push_back(item);
         }
         for(int j=0;j<y;j++){
             int p;
@@ -170,7 +184,7 @@ void scheduleProgress(int k,int x,int a,int b,int max_alloc,string mode){
             doneList.push(tem);
             PCBs[tem.PID].state="DONE";
             cpu=0;
-            freeBitmap(tem.ptbr,pageTables);
+            freeBitmap(tem.ptbr,pageTables);//TODO:不存在时候时候会出错
             error=false;
         }
         if(time-timeList.front()==5){
