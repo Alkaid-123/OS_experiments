@@ -153,23 +153,6 @@ void scheduleProgress(int k,int x,int a,int b,int max_alloc,string mode){
         PCBs.push_back(p);
         readyList.push(p);
     }
-    //output bitmap
-    cout<<"after loading process"<<endl;
-    for(int i=0;i<num_p;i++)
-        cout<<bitmap[i];
-    cout<<endl<<endl;
-    //output pageTables
-    for(int i=0;i<k;i++){
-        cout<<"pageTable of P"<<i<<endl;
-        for(int j=0;j<pageTables[i].size();j++){
-            cout<<j<<":";
-            if(pageTables[i][j].isValid)
-                cout<<pageTables[i][j].pNum;
-            else cout<<"-";
-            cout<<TAB;
-        }
-        cout<<endl;
-    }
 
     cout<<endl<<"Time"<<TAB;
     for(int i=0;i<k;i++) cout<<"PID:"<<i<<TAB<<TAB<<TAB;
