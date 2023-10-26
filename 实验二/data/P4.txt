@@ -1,9 +1,0 @@
-4 1 11 12 14
-cpu	E7B3
-cpu	BAE9
-cpu	C270
-cpu	EE77
-cpu	1ACC
-cpu	C544
-io	E35E
-cpu	EB23

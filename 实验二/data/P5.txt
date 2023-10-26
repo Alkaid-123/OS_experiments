@@ -1,9 +1,0 @@
-4 0 5 13 14
-cpu	EE19
-cpu	5DA5
-cpu	E2F4
-cpu	58D8
-cpu	D774
-cpu	50FE
-cpu	5BC4
-cpu	5D6D

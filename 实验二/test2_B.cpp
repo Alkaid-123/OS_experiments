@@ -88,118 +88,63 @@ void freeBitmap(int ptbr,vector<vector<pageTableItem>>&pageTables){
     }
 }
 
-void vAddr2pAddr(int vAddr,int& pAddr,int& offset,int x,vector<vector<pageTableItem>>&pageTables,bool &error,int max_alloc,string mode,queue<int>& fifoQueue,string &state,int &cntHit,int &cntTrans){
+void vAddr2pAddr(int vAddr,int& pAddr,int& offset,int x,vector<vector<pageTableItem>>&pageTables,bool &error,int max_alloc,string mode,queue<int>& q,string &state,int &cntHit,int &cntTrans){
     offset=vAddr&((1<<x)-1);
     pageTableItem& item=pageTables[PTBR][vAddr>>x];
-    
     int flag=0;
     state.clear();
     ostringstream buffer;
-
-    if(item.isValid==true){
-        cntTrans++;
-        if(item.isExist==false){//miss
-            if(fifoQueue.size()>=max_alloc){//full
-                int p=fifoQueue.front();
-                fifoQueue.pop();
-                fifoQueue.push(vAddr>>x);
-                item.pNum=pageTables[PTBR][p].pNum;
-                item.isExist=true; 
-                pageTables[PTBR][p].pNum=-1;
-                pageTables[PTBR][p].isExist=false;
-                flag=1;
-
-                buffer<<hex<<uppercase<<setfill('0')<<"replace["<<setw(1)<<(vAddr>>x)<<","<<setw(1)<<p<<"] "<<dec;
-            }
-            else{//not full
-                int num_p=bitmap.size();
-                for(int i=0;i<num_p;i++){
-                    if(bitmap[i]==0){
-                        fifoQueue.push(vAddr>>x);
-                        bitmap[i]=1;
-                        item.pNum=i;
-                        item.isExist=true; 
-                        if(flag==0){
-                            buffer<<hex<<uppercase<<setfill('0')<<"no-replace["<<setw(1)<<(vAddr>>x)<<","<<setw(2)<<i<<"] "<<dec;
-                            flag=2;
-                        }
-                        break;
-                    }
+    if(item.isValid==false){
+        error=true;
+        return;
+    }
+    cntTrans++;
+    if(item.isExist==false){//miss
+        if(q.size()>=max_alloc){//full
+            int p=q.front();
+            q.pop();
+            q.push(vAddr>>x);
+            item.pNum=pageTables[PTBR][p].pNum;
+            item.isExist=true; 
+            pageTables[PTBR][p].pNum=-1;
+            pageTables[PTBR][p].isExist=false;
+            flag=1;
+            buffer<<hex<<uppercase<<setfill('0')<<"replace["<<setw(1)<<(vAddr>>x)<<","<<setw(1)<<p<<"] "<<dec;
+        }
+        else{//not full
+            int num_p=bitmap.size();
+            for(int i=0;i<num_p;i++){
+                if(bitmap[i]==0){
+                    q.push(vAddr>>x);
+                    bitmap[i]=1;
+                    item.pNum=i;
+                    item.isExist=true; 
+                    buffer<<hex<<uppercase<<setfill('0')<<"no-replace["<<setw(1)<<(vAddr>>x)<<","<<setw(2)<<i<<"] "<<dec;
+                    flag=2;
+                    break;
                 }
             }
         }
-        //hit
-
-        pAddr=(item.pNum<<x)|offset;
-        buffer<<hex<<uppercase<<setfill('0')<<"hit["<<setw(4)<<vAddr<<","<<setw(5)<<pAddr<<"] "<<dec;
-        if(flag==0){
-            buffer<<"\t\t";
-            cntHit++;
-        } 
-        else if(flag==1) buffer<<"\t";
-        state=buffer.str();
     }
-    else error=true;
-}
-void vAddr2pAddr(int vAddr,int& pAddr,int& offset,int x,vector<vector<pageTableItem>>&pageTables,bool &error,int max_alloc,string mode,list<int>& lruList,string &state,int &cntHit,int &cntTrans){
-    offset=vAddr&((1<<x)-1);
-    pageTableItem& item=pageTables[PTBR][vAddr>>x];
-    
-    int flag=0;
-    state.clear();
-    ostringstream buffer;
-
-    if(item.isValid==true){
-        cntTrans++;
-        if(item.isExist==false){//miss
-            if(lruList.size()>=max_alloc){//full
-                int p=lruList.front();
-                lruList.pop_front();
-                lruList.push_back(vAddr>>x);
-                item.pNum=pageTables[PTBR][p].pNum;
-                item.isExist=true; 
-                pageTables[PTBR][p].pNum=-1;
-                pageTables[PTBR][p].isExist=false;
-                flag=1;
-
-                buffer<<hex<<uppercase<<setfill('0')<<"replace["<<setw(1)<<(vAddr>>x)<<","<<setw(1)<<p<<"] "<<dec;
-            }
-            else{//not full
-                int num_p=bitmap.size();
-                for(int i=0;i<num_p;i++){
-                    if(bitmap[i]==0){
-                        lruList.push_back(vAddr>>x);
-                        bitmap[i]=1;
-                        item.pNum=i;
-                        item.isExist=true; 
-                        if(flag==0){
-                            buffer<<hex<<uppercase<<setfill('0')<<"no-replace["<<setw(1)<<(vAddr>>x)<<","<<setw(2)<<i<<"] "<<dec;
-                            flag=2;
-                        }
-                        break;
-                    }
-                }
-            }
+    //hit
+    if(mode=="LRU"){
+        queue<int>tem;
+        while(!q.empty()){
+            int p=q.front();
+            q.pop();
+            if(p!=vAddr>>x) tem.push(p);
         }
-        //hit
-        int num=vAddr>>x;
-        for(auto it=lruList.begin();it!=lruList.end();it++){
-            if(*it==num){
-                lruList.erase(it);
-                break;
-            }
-        }
-        lruList.push_back(num);
-        pAddr=(item.pNum<<x)|offset;
-        buffer<<hex<<uppercase<<setfill('0')<<"hit["<<setw(4)<<vAddr<<","<<setw(5)<<pAddr<<"] "<<dec;
-        if(flag==0){
-            buffer<<"\t\t";
-            cntHit++;
-        } 
-        else if(flag==1) buffer<<"\t";
-        state=buffer.str();
+        tem.push(vAddr>>x);
+        q=tem;
     }
-    else error=true;
+    pAddr=(item.pNum<<x)|offset;
+    buffer<<hex<<uppercase<<setfill('0')<<"hit["<<setw(4)<<vAddr<<","<<setw(5)<<pAddr<<"] "<<dec;
+    if(flag==0){
+        buffer<<"\t\t";
+        cntHit++;
+    } 
+    else if(flag==1) buffer<<"\t";
+    state=buffer.str();
 }
 
 void scheduleProgress(int k,int x,int a,int b,int max_alloc,string mode){
@@ -209,8 +154,7 @@ void scheduleProgress(int k,int x,int a,int b,int max_alloc,string mode){
     vector<vector<pageTableItem>>pageTables;
     queue<PCB>readyList,runList,waitingList,doneList;
     queue<int>timeList;
-    vector<queue<int>>fifoQueues;
-    vector<list<int>>lruLists;
+    vector<queue<int>>queues;
     vector<int>cntHits,cntTranss;
     string state;
     int vAddr,pAddr,offset;
@@ -230,10 +174,8 @@ void scheduleProgress(int k,int x,int a,int b,int max_alloc,string mode){
             cout<<"open file error"<<endl;
             exit(0);
         }
-        queue<int>fifoQueue;
-        fifoQueues.push_back(fifoQueue);
-        list<int>lruList;
-        lruLists.push_back(lruList);
+        queue<int>queue;
+        queues.push_back(queue);
         vector<pageTableItem>pageTable;
         int y;
         input>>y;
@@ -271,7 +213,7 @@ void scheduleProgress(int k,int x,int a,int b,int max_alloc,string mode){
         for(int j=0;j<pageTables[i].size();j++){
             cout<<j<<":";
             if(pageTables[i][j].isValid)
-                cout<<pageTables[i][j].pNum;
+                cout<<"v";
             else cout<<"-";
             cout<<TAB;
         }
@@ -294,7 +236,7 @@ void scheduleProgress(int k,int x,int a,int b,int max_alloc,string mode){
             doneList.push(tem);
             PCBs[tem.PID].state="DONE";
             cpu=0;
-            freeBitmap(tem.ptbr,pageTables);//TODO:不存在时候时候会出错 还有问题
+            freeBitmap(tem.ptbr,pageTables);
             error=false;
         }
         if(time-timeList.front()==5){
@@ -340,10 +282,7 @@ void scheduleProgress(int k,int x,int a,int b,int max_alloc,string mode){
             }
             vAddr=vAddrs[tem.PID][tem.PC];
 
-            if(mode=="FIFO")
-                vAddr2pAddr(vAddr,pAddr,offset,x,pageTables,error,max_alloc,mode,fifoQueues[tem.PID],state,cntHits[tem.PID],cntTranss[tem.PID]);
-            else if(mode=="LRU")
-                vAddr2pAddr(vAddr,pAddr,offset,x,pageTables,error,max_alloc,mode,lruLists[tem.PID],state,cntHits[tem.PID],cntTranss[tem.PID]);
+            vAddr2pAddr(vAddr,pAddr,offset,x,pageTables,error,max_alloc,mode,queues[tem.PID],state,cntHits[tem.PID],cntTranss[tem.PID]);
             runList.front().PC++;
         }
         else if(!readyList.empty()){
@@ -358,10 +297,7 @@ void scheduleProgress(int k,int x,int a,int b,int max_alloc,string mode){
             cpu=1;
             PTBR=tem.ptbr;
             vAddr=vAddrs[tem.PID][tem.PC];
-            if(mode=="FIFO")
-                vAddr2pAddr(vAddr,pAddr,offset,x,pageTables,error,max_alloc,mode,fifoQueues[tem.PID],state,cntHits[tem.PID],cntTranss[tem.PID]);
-            else if(mode=="LRU")
-                vAddr2pAddr(vAddr,pAddr,offset,x,pageTables,error,max_alloc,mode,lruLists[tem.PID],state,cntHits[tem.PID],cntTranss[tem.PID]);
+            vAddr2pAddr(vAddr,pAddr,offset,x,pageTables,error,max_alloc,mode,queues[tem.PID],state,cntHits[tem.PID],cntTranss[tem.PID]);
             tem.PC++;
             runList.push(tem);
         }
