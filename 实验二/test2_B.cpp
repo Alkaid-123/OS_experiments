@@ -87,15 +87,7 @@ void freeBitmap(int ptbr,vector<vector<pageTableItem>>&pageTables){
         }
     }
 }
-// //function of virtual address to physical address
-// void vAddr2pAddr(int vAddr,int& pAddr,int& offset,int num_o,vector<vector<pageTableItem>>&pageTables,bool &error){
-//     offset=vAddr%num_o;
-//     if(pageTables[PTBR][vAddr/num_o].isValid==true)
-//         pAddr=pageTables[PTBR][vAddr/num_o].pNum*num_o+offset;
-//     else error=true;
-// }
 
-//function of virtual address to physical address use bit opeartion
 void vAddr2pAddr(int vAddr,int& pAddr,int& offset,int x,vector<vector<pageTableItem>>&pageTables,bool &error,int max_alloc,string mode,queue<int>& fifoQueue,string &state,int &cntHit,int &cntTrans){
     offset=vAddr&((1<<x)-1);
     pageTableItem& item=pageTables[PTBR][vAddr>>x];
@@ -137,6 +129,7 @@ void vAddr2pAddr(int vAddr,int& pAddr,int& offset,int x,vector<vector<pageTableI
             }
         }
         //hit
+
         pAddr=(item.pNum<<x)|offset;
         buffer<<hex<<uppercase<<setfill('0')<<"hit["<<setw(4)<<vAddr<<","<<setw(5)<<pAddr<<"] "<<dec;
         if(flag==0){

@@ -1,13 +1,13 @@
-3 0 5 7
-cpu	7CEE
-cpu	7961
-cpu	72F5
-cpu	095E
-cpu	5366
-cpu	089B
-io	0344
-cpu	7E9A
-cpu	7535
-io	53C5
-io	5402
-cpu	03E6
+4 4 7 12 14
+cpu	4D12
+cpu	4D54
+cpu	47CD
+cpu	401B
+cpu	EF17
+cpu	E813
+cpu	4360
+cpu	C214
+cpu	CF09
+io	C129
+cpu	E2E9
+io	E314

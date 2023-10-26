@@ -1,11 +1,13 @@
-4 2 9 10 11
-io	2BAD
-cpu	B694
-cpu	A397
-cpu	A6FE
-cpu	AF1A
-cpu	AA86
-cpu	B3AD
-cpu	958C
-cpu	ADBA
-cpu	AFA5
+3 6 12 13
+cpu	C537
+cpu	C5EE
+cpu	6123
+cpu	C245
+cpu	6234
+cpu	CDB0
+cpu	D012
+cpu	D639
+cpu	DDC8
+cpu	C48F
+cpu	6C46
+cpu	6681
