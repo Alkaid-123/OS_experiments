@@ -1,10 +1,16 @@
-5 3 7 11 12 14
-cpu	33B6
-cpu	C18B
-io	784C
-cpu	723C
-cpu	180E
-cpu	C702
-cpu	E252
-io	93CC
-cpu	7FC0
+3 7 8 9
+cpu	8A83
+cpu	7F8A
+cpu	93D6
+cpu	78C7
+io	7699
+cpu	8588
+cpu	7238
+cpu	9155
+cpu	8676
+cpu	9248
+cpu	9BE8
+cpu	7990
+io	8C76
+cpu	83F1
+cpu	9BDE

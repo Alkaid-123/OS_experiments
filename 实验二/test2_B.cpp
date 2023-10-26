@@ -96,48 +96,113 @@ void freeBitmap(int ptbr,vector<vector<pageTableItem>>&pageTables){
 // }
 
 //function of virtual address to physical address use bit opeartion
-void vAddr2pAddr(int vAddr,int& pAddr,int& offset,int x,vector<vector<pageTableItem>>&pageTables,bool &error,int max_alloc,string mode,queue<int>& queue,string &state){
+void vAddr2pAddr(int vAddr,int& pAddr,int& offset,int x,vector<vector<pageTableItem>>&pageTables,bool &error,int max_alloc,string mode,queue<int>& fifoQueue,string &state,int &cntHit,int &cntTrans){
     offset=vAddr&((1<<x)-1);
     pageTableItem& item=pageTables[PTBR][vAddr>>x];
-
+    
     int flag=0;
     state.clear();
     ostringstream buffer;
 
     if(item.isValid==true){
+        cntTrans++;
         if(item.isExist==false){//miss
-            if(queue.size()>=max_alloc){//full
-                int p=queue.front();
-                queue.pop();
-                bitmap[pageTables[PTBR][p].pNum]=0;
+            if(fifoQueue.size()>=max_alloc){//full
+                int p=fifoQueue.front();
+                fifoQueue.pop();
+                fifoQueue.push(vAddr>>x);
+                item.pNum=pageTables[PTBR][p].pNum;
+                item.isExist=true; 
                 pageTables[PTBR][p].pNum=-1;
                 pageTables[PTBR][p].isExist=false;
                 flag=1;
-                
+
                 buffer<<hex<<uppercase<<setfill('0')<<"replace["<<setw(1)<<(vAddr>>x)<<","<<setw(1)<<p<<"] "<<dec;
             }
-            //not full
-            int num_p=bitmap.size();
-            for(int i=0;i<num_p;i++){
-                if(bitmap[i]==0){
-                    queue.push(vAddr>>x);
-                    bitmap[i]=1;
-                    item.pNum=i;
-                    item.isExist=true; 
-
-                    if(flag==0){
-                        buffer<<hex<<uppercase<<setfill('0')<<"no-replace["<<setw(1)<<(vAddr>>x)<<","<<setw(2)<<i<<"] "<<dec;
-                        flag=2;
+            else{//not full
+                int num_p=bitmap.size();
+                for(int i=0;i<num_p;i++){
+                    if(bitmap[i]==0){
+                        fifoQueue.push(vAddr>>x);
+                        bitmap[i]=1;
+                        item.pNum=i;
+                        item.isExist=true; 
+                        if(flag==0){
+                            buffer<<hex<<uppercase<<setfill('0')<<"no-replace["<<setw(1)<<(vAddr>>x)<<","<<setw(2)<<i<<"] "<<dec;
+                            flag=2;
+                        }
+                        break;
                     }
-                        
-                    break;
                 }
             }
         }
         //hit
         pAddr=(item.pNum<<x)|offset;
         buffer<<hex<<uppercase<<setfill('0')<<"hit["<<setw(4)<<vAddr<<","<<setw(5)<<pAddr<<"] "<<dec;
-        if(flag==0) buffer<<"\t\t";
+        if(flag==0){
+            buffer<<"\t\t";
+            cntHit++;
+        } 
+        else if(flag==1) buffer<<"\t";
+        state=buffer.str();
+    }
+    else error=true;
+}
+void vAddr2pAddr(int vAddr,int& pAddr,int& offset,int x,vector<vector<pageTableItem>>&pageTables,bool &error,int max_alloc,string mode,list<int>& lruList,string &state,int &cntHit,int &cntTrans){
+    offset=vAddr&((1<<x)-1);
+    pageTableItem& item=pageTables[PTBR][vAddr>>x];
+    
+    int flag=0;
+    state.clear();
+    ostringstream buffer;
+
+    if(item.isValid==true){
+        cntTrans++;
+        if(item.isExist==false){//miss
+            if(lruList.size()>=max_alloc){//full
+                int p=lruList.front();
+                lruList.pop_front();
+                lruList.push_back(vAddr>>x);
+                item.pNum=pageTables[PTBR][p].pNum;
+                item.isExist=true; 
+                pageTables[PTBR][p].pNum=-1;
+                pageTables[PTBR][p].isExist=false;
+                flag=1;
+
+                buffer<<hex<<uppercase<<setfill('0')<<"replace["<<setw(1)<<(vAddr>>x)<<","<<setw(1)<<p<<"] "<<dec;
+            }
+            else{//not full
+                int num_p=bitmap.size();
+                for(int i=0;i<num_p;i++){
+                    if(bitmap[i]==0){
+                        lruList.push_back(vAddr>>x);
+                        bitmap[i]=1;
+                        item.pNum=i;
+                        item.isExist=true; 
+                        if(flag==0){
+                            buffer<<hex<<uppercase<<setfill('0')<<"no-replace["<<setw(1)<<(vAddr>>x)<<","<<setw(2)<<i<<"] "<<dec;
+                            flag=2;
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+        //hit
+        int num=vAddr>>x;
+        for(auto it=lruList.begin();it!=lruList.end();it++){
+            if(*it==num){
+                lruList.erase(it);
+                break;
+            }
+        }
+        lruList.push_back(num);
+        pAddr=(item.pNum<<x)|offset;
+        buffer<<hex<<uppercase<<setfill('0')<<"hit["<<setw(4)<<vAddr<<","<<setw(5)<<pAddr<<"] "<<dec;
+        if(flag==0){
+            buffer<<"\t\t";
+            cntHit++;
+        } 
         else if(flag==1) buffer<<"\t";
         state=buffer.str();
     }
@@ -152,6 +217,8 @@ void scheduleProgress(int k,int x,int a,int b,int max_alloc,string mode){
     queue<PCB>readyList,runList,waitingList,doneList;
     queue<int>timeList;
     vector<queue<int>>fifoQueues;
+    vector<list<int>>lruLists;
+    vector<int>cntHits,cntTranss;
     string state;
     int vAddr,pAddr,offset;
     const string TAB="\t";
@@ -161,6 +228,8 @@ void scheduleProgress(int k,int x,int a,int b,int max_alloc,string mode){
     int num_a=a/4+(a%4!=0);
     int num_b=b/4+(b%4!=0);
     for(int i=0;i<k;i++){
+        cntHits.push_back(0);
+        cntTranss.push_back(0);
         string name="P"+to_string(i)+".txt";
         string path="./data/"+name;
         ifstream input(path.c_str(),ios::in);
@@ -170,6 +239,8 @@ void scheduleProgress(int k,int x,int a,int b,int max_alloc,string mode){
         }
         queue<int>fifoQueue;
         fifoQueues.push_back(fifoQueue);
+        list<int>lruList;
+        lruLists.push_back(lruList);
         vector<pageTableItem>pageTable;
         int y;
         input>>y;
@@ -198,6 +269,20 @@ void scheduleProgress(int k,int x,int a,int b,int max_alloc,string mode){
         PCB p(i,name,"READY",0,i);
         PCBs.push_back(p);
         readyList.push(p);
+    }
+
+    //output pageTables
+    cout<<endl;
+    for(int i=0;i<k;i++){
+        cout<<"pageTable of P"<<i<<endl;
+        for(int j=0;j<pageTables[i].size();j++){
+            cout<<j<<":";
+            if(pageTables[i][j].isValid)
+                cout<<pageTables[i][j].pNum;
+            else cout<<"-";
+            cout<<TAB;
+        }
+        cout<<endl;
     }
 
     cout<<endl<<"Time"<<TAB;
@@ -263,7 +348,9 @@ void scheduleProgress(int k,int x,int a,int b,int max_alloc,string mode){
             vAddr=vAddrs[tem.PID][tem.PC];
 
             if(mode=="FIFO")
-                vAddr2pAddr(vAddr,pAddr,offset,x,pageTables,error,max_alloc,mode,fifoQueues[tem.PID],state);
+                vAddr2pAddr(vAddr,pAddr,offset,x,pageTables,error,max_alloc,mode,fifoQueues[tem.PID],state,cntHits[tem.PID],cntTranss[tem.PID]);
+            else if(mode=="LRU")
+                vAddr2pAddr(vAddr,pAddr,offset,x,pageTables,error,max_alloc,mode,lruLists[tem.PID],state,cntHits[tem.PID],cntTranss[tem.PID]);
             runList.front().PC++;
         }
         else if(!readyList.empty()){
@@ -279,7 +366,9 @@ void scheduleProgress(int k,int x,int a,int b,int max_alloc,string mode){
             PTBR=tem.ptbr;
             vAddr=vAddrs[tem.PID][tem.PC];
             if(mode=="FIFO")
-                vAddr2pAddr(vAddr,pAddr,offset,x,pageTables,error,max_alloc,mode,fifoQueues[tem.PID],state);
+                vAddr2pAddr(vAddr,pAddr,offset,x,pageTables,error,max_alloc,mode,fifoQueues[tem.PID],state,cntHits[tem.PID],cntTranss[tem.PID]);
+            else if(mode=="LRU")
+                vAddr2pAddr(vAddr,pAddr,offset,x,pageTables,error,max_alloc,mode,lruLists[tem.PID],state,cntHits[tem.PID],cntTranss[tem.PID]);
             tem.PC++;
             runList.push(tem);
         }
@@ -321,9 +410,16 @@ void scheduleProgress(int k,int x,int a,int b,int max_alloc,string mode){
         if(doneList.size()==k) break;
     }
     printf("\n\nStatus: Total Time %d\n",time);
-    printf("Status: CPU Busy %d (%.2f\%)\n",cntCPU,cntCPU*100.0/time);
-    printf("Status: IO Busy %d (%.2f\%)\n",cntIOs,cntIOs*100.0/time);
+    printf("Status: CPU Busy %d (%.2f%%)\n",cntCPU,cntCPU*100.0/time);
+    printf("Status: IO Busy %d (%.2f%%)\n\n",cntIOs,cntIOs*100.0/time);
     
+    //print hit rate for every process
+    for(int i=0;i<k;i++){
+        if(cntTranss[i]!=0)
+            printf("Process %d hit rate %.2f%%\n",i,cntHits[i]*100.0/cntTranss[i]);
+        else printf("Process %d hit rate 0.00%%\n",i);
+    }
+
     cout<<endl<<"bitmap when completed"<<endl;
     for(int i=0;i<num_p;i++)
         cout<<bitmap[i];
@@ -332,12 +428,13 @@ void scheduleProgress(int k,int x,int a,int b,int max_alloc,string mode){
 int main(int argc, char* argv[]){
     srand((unsigned)time(NULL));
     cout<<"\033[97m";
-    if(argc!=13){
+    if(argc!=14){
         cout<<"number of arguments is incorrect:"<<argc-1<<endl;
-        cout<<"expected number:11"<<endl;
+        cout<<"expected number:14"<<endl;
         cout<<"use default arguments"<<endl;
         //use default arguments
         //char* defaultArgv[12]={"","6","80","5","10","12","16","18","3","7","0.9","0.7"};
+        //6 80 5 10 12 16 18 3 7 0.9 0.5 2 FIFO
     }
     int k=atoi(argv[1]);
     int p=atoi(argv[2]);
@@ -376,8 +473,10 @@ int main(int argc, char* argv[]){
         cout<<bitmap[i];
     }
     cout<<endl;
-    //generateProgress(k,p,mi,mx,x,a,b,min_size,max_size,p_valid,p_available);
-    scheduleProgress(k,x,a,b,max_alloc,mode);
+    generateProgress(k,p,mi,mx,x,a,b,min_size,max_size,p_valid,p_available);
+    //scheduleProgress(k,x,a,b,max_alloc,mode);
+    scheduleProgress(k,x,a,b,max_alloc,"FIFO");
+    scheduleProgress(k,x,a,b,max_alloc,"LRU");
     cout<<"\033[0m";
     return 0;
 }

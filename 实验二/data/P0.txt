@@ -1,6 +1,13 @@
-5 7 10 11 13 14
-io	DA1D
-cpu	E916
-io	BBC4
-cpu	7A5E
-cpu	7B8C
+3 0 5 7
+cpu	7CEE
+cpu	7961
+cpu	72F5
+cpu	095E
+cpu	5366
+cpu	089B
+io	0344
+cpu	7E9A
+cpu	7535
+io	53C5
+io	5402
+cpu	03E6

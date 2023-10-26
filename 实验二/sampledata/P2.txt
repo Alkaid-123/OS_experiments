@@ -1,0 +1,7 @@
+3 5 12 13
+cpu	A3AC
+cpu	57AF
+cpu	566D
+cpu	5762
+cpu	74C9
+cpu	CBB2

@@ -1,7 +1,15 @@
-4 0 4 5 15
-io	0776
-cpu	F5DB
-cpu	4C7C
-cpu	4AA3
-cpu	F086
-io	2DBE
+4 3 6 14 15
+cpu	687A
+io	EAAF
+cpu	E5A8
+cpu	6D1E
+cpu	F819
+cpu	FD11
+io	3953
+io	F7A7
+cpu	3A30
+cpu	3B93
+cpu	FB5C
+io	F99D
+io	65D7
+io	E51E

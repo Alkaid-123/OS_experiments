@@ -1,7 +1,11 @@
-3 5 12 13
-cpu	A3AC
-cpu	57AF
-cpu	566D
-cpu	5762
-cpu	74C9
-cpu	CBB2
+4 2 9 10 11
+io	2BAD
+cpu	B694
+cpu	A397
+cpu	A6FE
+cpu	AF1A
+cpu	AA86
+cpu	B3AD
+cpu	958C
+cpu	ADBA
+cpu	AFA5

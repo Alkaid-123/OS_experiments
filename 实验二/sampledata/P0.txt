@@ -1,0 +1,6 @@
+5 7 10 11 13 14
+io	DA1D
+cpu	E916
+io	BBC4
+cpu	7A5E
+cpu	7B8C
