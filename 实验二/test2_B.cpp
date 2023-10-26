@@ -96,22 +96,50 @@ void freeBitmap(int ptbr,vector<vector<pageTableItem>>&pageTables){
 // }
 
 //function of virtual address to physical address use bit opeartion
-void vAddr2pAddr(int vAddr,int& pAddr,int& offset,int x,vector<vector<pageTableItem>>&pageTables,bool &error){
+void vAddr2pAddr(int vAddr,int& pAddr,int& offset,int x,vector<vector<pageTableItem>>&pageTables,bool &error,int max_alloc,string mode,queue<int>& queue,string &state){
     offset=vAddr&((1<<x)-1);
     pageTableItem& item=pageTables[PTBR][vAddr>>x];
+
+    int flag=0;
+    state.clear();
+    ostringstream buffer;
+
     if(item.isValid==true){
-        if(item.isExist==false){
+        if(item.isExist==false){//miss
+            if(queue.size()>=max_alloc){//full
+                int p=queue.front();
+                queue.pop();
+                bitmap[pageTables[PTBR][p].pNum]=0;
+                pageTables[PTBR][p].pNum=-1;
+                pageTables[PTBR][p].isExist=false;
+                flag=1;
+                
+                buffer<<hex<<uppercase<<setfill('0')<<"replace["<<setw(1)<<(vAddr>>x)<<","<<setw(1)<<p<<"] "<<dec;
+            }
+            //not full
             int num_p=bitmap.size();
             for(int i=0;i<num_p;i++){
                 if(bitmap[i]==0){
+                    queue.push(vAddr>>x);
                     bitmap[i]=1;
                     item.pNum=i;
-                    item.isExist=true;
+                    item.isExist=true; 
+
+                    if(flag==0){
+                        buffer<<hex<<uppercase<<setfill('0')<<"no-replace["<<setw(1)<<(vAddr>>x)<<","<<setw(2)<<i<<"] "<<dec;
+                        flag=2;
+                    }
+                        
                     break;
                 }
             }
         }
+        //hit
         pAddr=(item.pNum<<x)|offset;
+        buffer<<hex<<uppercase<<setfill('0')<<"hit["<<setw(4)<<vAddr<<","<<setw(5)<<pAddr<<"] "<<dec;
+        if(flag==0) buffer<<"\t\t";
+        else if(flag==1) buffer<<"\t";
+        state=buffer.str();
     }
     else error=true;
 }
@@ -123,6 +151,8 @@ void scheduleProgress(int k,int x,int a,int b,int max_alloc,string mode){
     vector<vector<pageTableItem>>pageTables;
     queue<PCB>readyList,runList,waitingList,doneList;
     queue<int>timeList;
+    vector<queue<int>>fifoQueues;
+    string state;
     int vAddr,pAddr,offset;
     const string TAB="\t";
     int num_v=pow(2,a-x);//number of virtual pages
@@ -138,6 +168,8 @@ void scheduleProgress(int k,int x,int a,int b,int max_alloc,string mode){
             cout<<"open file error"<<endl;
             exit(0);
         }
+        queue<int>fifoQueue;
+        fifoQueues.push_back(fifoQueue);
         vector<pageTableItem>pageTable;
         int y;
         input>>y;
@@ -169,7 +201,7 @@ void scheduleProgress(int k,int x,int a,int b,int max_alloc,string mode){
     }
 
     cout<<endl<<"Time"<<TAB;
-    for(int i=0;i<k;i++) cout<<"PID:"<<i<<TAB<<TAB<<TAB;
+    for(int i=0;i<k;i++) cout<<"PID:"<<i<<TAB<<TAB<<TAB<<TAB<<TAB<<TAB;
     cout<<"CPU"<<TAB<<"IOs";
 
     int time=0,cpu=0,ios=0,cntCPU=0,cntIOs=0;
@@ -184,7 +216,7 @@ void scheduleProgress(int k,int x,int a,int b,int max_alloc,string mode){
             doneList.push(tem);
             PCBs[tem.PID].state="DONE";
             cpu=0;
-            freeBitmap(tem.ptbr,pageTables);//TODO:不存在时候时候会出错
+            freeBitmap(tem.ptbr,pageTables);//TODO:不存在时候时候会出错 还有问题
             error=false;
         }
         if(time-timeList.front()==5){
@@ -229,7 +261,9 @@ void scheduleProgress(int k,int x,int a,int b,int max_alloc,string mode){
                 timeList.push(time);
             }
             vAddr=vAddrs[tem.PID][tem.PC];
-            vAddr2pAddr(vAddr,pAddr,offset,x,pageTables,error);
+
+            if(mode=="FIFO")
+                vAddr2pAddr(vAddr,pAddr,offset,x,pageTables,error,max_alloc,mode,fifoQueues[tem.PID],state);
             runList.front().PC++;
         }
         else if(!readyList.empty()){
@@ -244,7 +278,8 @@ void scheduleProgress(int k,int x,int a,int b,int max_alloc,string mode){
             cpu=1;
             PTBR=tem.ptbr;
             vAddr=vAddrs[tem.PID][tem.PC];
-            vAddr2pAddr(vAddr,pAddr,offset,x,pageTables,error);
+            if(mode=="FIFO")
+                vAddr2pAddr(vAddr,pAddr,offset,x,pageTables,error,max_alloc,mode,fifoQueues[tem.PID],state);
             tem.PC++;
             runList.push(tem);
         }
@@ -258,20 +293,20 @@ void scheduleProgress(int k,int x,int a,int b,int max_alloc,string mode){
         for(int i=0;i<k;i++){
             if(PCBs[i].state=="RUN:io"){
                 cout<<"\033[96m"<<PCBs[i].state<<"  \033[97m";
-                if(error) cout<<hex<<uppercase<<setfill('0')<<"\033[91m"<<setw(num_a)<<vAddr<<" error\033[97m"<<dec;
-                else cout<<hex<<uppercase<<setfill('0')<<"\033[95m["<<setw(num_a)<<vAddr<<";"<<setw(num_b)<<pAddr<<"]\033[97m"<<dec;
+                if(error) cout<<hex<<uppercase<<setfill('0')<<"\033[91m"<<setw(num_a)<<vAddr<<" error\033[97m"<<dec<<TAB<<TAB<<TAB;
+                else cout<<hex<<uppercase<<setfill('0')<<"\033[95m"<<state<<"\033[97m"<<dec;
             }
             else if(PCBs[i].state=="RUN:cpu"){
                 cout<<"\033[94m"<<PCBs[i].state<<" \033[97m"; 
-                if(error) cout<<hex<<uppercase<<setfill('0')<<"\033[91m"<<setw(num_a)<<vAddr<<" error\033[97m"<<dec;
-                else cout<<hex<<uppercase<<setfill('0')<<"\033[95m["<<setw(num_a)<<vAddr<<";"<<setw(num_b)<<pAddr<<"]\033[97m"<<dec;
+                if(error) cout<<hex<<uppercase<<setfill('0')<<"\033[91m"<<setw(num_a)<<vAddr<<" error\033[97m"<<dec<<TAB<<TAB<<TAB;
+                else cout<<hex<<uppercase<<setfill('0')<<"\033[95m"<<state<<"\033[97m"<<dec;
             }          
             else if(PCBs[i].state=="READY")
-                cout<<"\033[93m"<<PCBs[i].state<<"\033[97m"<<TAB<<TAB;
+                cout<<"\033[93m"<<PCBs[i].state<<"\033[97m"<<TAB<<TAB<<TAB<<TAB<<TAB;
             else if(PCBs[i].state=="WAITING")
-                cout<<"\033[90m"<<PCBs[i].state<<"\033[97m"<<TAB<<TAB;
+                cout<<"\033[90m"<<PCBs[i].state<<"\033[97m"<<TAB<<TAB<<TAB<<TAB<<TAB;
             else if(PCBs[i].state=="DONE")
-                cout<<"\033[92m"<<PCBs[i].state<<"\033[97m"<<TAB<<TAB;
+                cout<<"\033[92m"<<PCBs[i].state<<"\033[97m"<<TAB<<TAB<<TAB<<TAB<<TAB;
             cout<<TAB;
         }
         if(cpu){
