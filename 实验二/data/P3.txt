@@ -1,0 +1,7 @@
+4 0 2 4 15
+cpu	494C
+io	FFDD
+cpu	071A
+cpu	425A
+cpu	28B3
+cpu	23C7

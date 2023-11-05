@@ -1,15 +1,9 @@
-3 0 3 6
-cpu	0B63
-cpu	3552
-cpu	0C04
-cpu	62BE
-cpu	312B
-cpu	0609
-cpu	6222
-io	6F7E
-io	68D7
-io	654D
-cpu	0C5B
-cpu	060A
-cpu	3B64
-cpu	0B2C
+7 0 3 7 8 10 11 14
+io	7387
+cpu	0E1C
+cpu	0EAE
+cpu	A186
+io	0AC2
+cpu	BCF8
+cpu	031C
+cpu	81A4

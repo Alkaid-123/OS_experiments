@@ -1,0 +1,7 @@
+3 7 12 13
+cpu	C3A5
+io	C407
+cpu	CDCF
+cpu	C5DA
+cpu	C306
+cpu	D294

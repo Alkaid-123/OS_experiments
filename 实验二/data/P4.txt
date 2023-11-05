@@ -1,0 +1,8 @@
+4 0 5 12 14
+cpu	B22A
+cpu	C97E
+cpu	4581
+io	5403
+cpu	09DD
+io	6A26
+cpu	EDAA

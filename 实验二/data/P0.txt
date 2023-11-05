@@ -1,13 +1,7 @@
-3 2 9 15
-cpu	9D7D
-cpu	9DDB
-cpu	F7C3
-cpu	F2E2
-io	9491
-cpu	F95A
-cpu	F7B7
-cpu	F01C
-cpu	FE38
-cpu	FF79
-io	F2CE
-cpu	95B0
+4 2 6 7 10
+io	AF44
+cpu	77CE
+cpu	69BA
+io	61AF
+cpu	268C
+cpu	7FA1

@@ -1,16 +1,8 @@
-4 0 4 5 12
-cpu	0D23
-cpu	53E1
-cpu	4F52
-io	0E61
-cpu	051C
-cpu	5A6F
-cpu	4332
-cpu	5E67
-cpu	46BC
-cpu	CD58
-cpu	01D3
-cpu	CB86
-cpu	0806
-io	52EB
-io	62EB
+6 0 1 3 8 9 11
+cpu	5D0B
+cpu	9A35
+cpu	3FCC
+io	8299
+cpu	8D33
+io	B32E
+cpu	9490

@@ -405,6 +405,15 @@ int main(int argc, char* argv[]){
     generateProgress(k,p,mi,mx,x,a,b,min_size,max_size,p_valid,p_available);
     //scheduleProgress(k,x,a,b,max_alloc,mode);
     scheduleProgress(k,x,a,b,max_alloc,"FIFO");
+        cout<<endl<<"initial bitmap"<<endl;
+
+    for(int i=0;i<num;i++){
+        if((double)rand()/RAND_MAX<=p_available)
+            bitmap[i]=0;
+        else bitmap[i]=1;
+        cout<<bitmap[i];
+    }
+    cout<<endl;
     scheduleProgress(k,x,a,b,max_alloc,"LRU");
     cout<<"\033[0m";
     return 0;
