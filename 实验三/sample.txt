@@ -1,18 +1,12 @@
 mkdir("/a")
+mkdir("/c/a")
 mkdir("/a")
 mkdir("/a/e")
 creat("/a/b")
-creat("/a/b")
-mkdir("/a/b/c")
 mkdir("/c")
 link("/a/b", "/c/d")
 unlink("/a/b")
-fd=open("/a/d"); write(fd); close(fd);
-fd=open("/a/e"); write(fd); close(fd);
 fd=open("/a/b"); write(fd); close(fd);
 fd=open("/c/d"); write(fd); close(fd);
 creat("/a/d")
 unlink("/c/d")
-unlink("/c/d")
-link("/a/f", "/c/d")
-link("/a/d", "/c/f/g")

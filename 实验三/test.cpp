@@ -11,21 +11,6 @@ public:
         addr=0;
         rNum=0;
     }
-    Inode(char t,int a,int r){
-        type=t;
-        addr=a;
-        rNum=r;
-    }
-    Inode(char t,int a){
-        type=t;
-        addr=a;
-        rNum=0;
-    }
-    Inode(const Inode &i){
-        type=i.type;
-        addr=i.addr;
-        rNum=i.rNum;
-    }
     void setInode(char t,int a,int r){
         type=t;
         addr=a;
@@ -53,8 +38,8 @@ public:
     void setData(char t,int now,int father){
         if(t=='d'){
             type=t;
-            dirData.insert(make_pair(".",now));
-            dirData.insert(make_pair("..",father));
+            dirData["."]=now;
+            dirData[".."]=father;
         }
     }
     void setData(char t,string s){
@@ -69,7 +54,7 @@ public:
 };
 bitset<100> inodeBitmap,dataBitmap;
 void outputInfo(vector<Inode> &inode,vector<Data> &data){
-    cout<<endl<<"inode bitmap\t";
+    cout<<"inode bitmap\t";
     for(int i=0;i<inode.size();i++)
         cout<<inodeBitmap[i];
     cout<<endl<<"inodes\t\t";
@@ -94,31 +79,29 @@ void outputInfo(vector<Inode> &inode,vector<Data> &data){
             cout<<data[i].fileData;
         cout<<"] ";
     }
-    cout<<endl<<endl;
+    cout<<endl;
 }
 
-bool checkPath(string path,vector<Inode> &inodes,vector<Data> &datas,string &name,int &fatherDataIndex){
-    regex r("/([^/\"]*)");
+bool checkPath(string path,vector<Inode> &inodes,vector<Data> &datas,string &name,int &fatherInodeIndex,int &fatherDataIndex){
     smatch result;
-    fatherDataIndex=0;
-    //cout<<"path: "<<path<<endl;
-    while(regex_search(path,result,r)){
+    int dataIndex=0,inodeIndex=0;
+    while(regex_search(path,result,regex("/([^/\"]*)"))){
         name=result[1];
-        //cout<<"name: "<<name<<endl;
         path=result.suffix();
         if(path.empty()) break;
-        if(datas[fatherDataIndex].dirData.find(name)==datas[fatherDataIndex].dirData.end()){
+        if(datas[dataIndex].dirData.find(name)==datas[dataIndex].dirData.end()){
             cout<<"No such file or directory!"<<endl;
             return false;
         }
-        int inodeIndex=datas[fatherDataIndex].dirData[name];
+        inodeIndex=datas[dataIndex].dirData[name];
         if(inodes[inodeIndex].type=='f'){
             cout<<"Not a directory!"<<endl;
             return false;
         }
-        fatherDataIndex=inodes[inodeIndex].addr;
+        dataIndex=inodes[inodeIndex].addr;
     }
-
+    fatherInodeIndex=inodeIndex;
+    fatherDataIndex=dataIndex;
     return true;
 }
 
@@ -144,39 +127,108 @@ bool findFreeData(int &dataIndex,int size){
     return false;
 }
 
-void setDirInfo(int inodeIndex,int dataIndex,int fatherDataIndex,string name,vector<Inode> &inodes,vector<Data> &datas){
+void mkdir(string path,vector<Inode> &inodes,vector<Data> &datas,int n,int m){
+    string name;
+    int fatherInodeIndex=0,fatherDataIndex=0,inodeIndex=-1,dataIndex=-1;
+    if(!checkPath(path,inodes,datas,name,fatherInodeIndex,fatherDataIndex)) return;
+    if(!findFreeInode(inodeIndex,n)||!findFreeData(dataIndex,m)) return;
+    if(datas[fatherDataIndex].dirData.find(name)!=datas[fatherDataIndex].dirData.end()){
+        cout<<"Directory already exists!"<<endl;
+        return;
+    }
     inodeBitmap[inodeIndex]=1;
     inodes[inodeIndex].setInode('d',dataIndex);
     dataBitmap[dataIndex]=1;
-    datas[dataIndex].setData('d',dataIndex,fatherDataIndex);
-    datas[fatherDataIndex].dirData.insert(make_pair(name,inodeIndex));
+    datas[dataIndex].setData('d',inodeIndex,fatherInodeIndex);
+    datas[fatherDataIndex].dirData[name]=inodeIndex;
+    outputInfo(inodes,datas);
 }
 
-void setFileInfo(int inodeIndex,int fatherDataIndex,string name,vector<Inode> &inodes,vector<Data> &datas){
+void creat(string path,vector<Inode> &inodes,vector<Data> &datas,int n,int m){
+    string name;
+    int fatherInodeIndex=0,fatherDataIndex=0,inodeIndex=-1;
+    if(!checkPath(path,inodes,datas,name,fatherInodeIndex,fatherDataIndex)) return;
+    if(!findFreeInode(inodeIndex,n)) return;
+    if(datas[fatherDataIndex].dirData.find(name)!=datas[fatherDataIndex].dirData.end()){
+        cout<<"File already exists!"<<endl;
+        return;
+    }
     inodeBitmap[inodeIndex]=1;
     inodes[inodeIndex].setInode('f',-1,1);
-    datas[fatherDataIndex].dirData.insert(make_pair(name,inodeIndex));
+    datas[fatherDataIndex].dirData[name]=inodeIndex;
+    outputInfo(inodes,datas);
 }
 
+void write(string path,vector<Inode> &inodes,vector<Data> &datas,int n,int m){
+    string name;
+    int fatherInodeIndex=0,fatherDataIndex=0,dataIndex=-1;
+    if(!checkPath(path,inodes,datas,name,fatherInodeIndex,fatherDataIndex)) return;
+    if(!findFreeData(dataIndex,m)) return;
+    if(datas[fatherDataIndex].dirData.find(name)==datas[fatherDataIndex].dirData.end()){
+        cout<<"No such file!"<<endl;
+        return;
+    }
+    int inodeIndex=datas[fatherDataIndex].dirData[name];
+    if(inodes[inodeIndex].type=='d'){
+        cout<<"Not a file!"<<endl;
+        return;
+    }
+    inodes[inodeIndex].addr=dataIndex;
+    dataBitmap[dataIndex]=1;
+    datas[dataIndex].setData('f',"u");
+    outputInfo(inodes,datas);
+}
 
+void link(string path1,string path2,vector<Inode> &inodes,vector<Data> &datas,int n,int m){
+    string name;
+    int fatherInodeIndex=0,fatherDataIndex=0;
+    if(!checkPath(path1,inodes,datas,name,fatherInodeIndex,fatherDataIndex)) return;
+    if(datas[fatherDataIndex].dirData.find(name)==datas[fatherDataIndex].dirData.end()){
+        cout<<"No such file!"<<endl;
+        return;
+    }
+    int inodeIndex=datas[fatherDataIndex].dirData[name];
+    if(!checkPath(path2,inodes,datas,name,fatherInodeIndex,fatherDataIndex)) return;
+    datas[fatherDataIndex].dirData[name]=inodeIndex;
+    inodes[inodeIndex].rNum++;
+    outputInfo(inodes,datas);
+}
+
+void unlink(string path,vector<Inode> &inodes,vector<Data> &datas,int n,int m){
+    string name;
+    int fatherInodeIndex=0,fatherDataIndex=0;
+    if(!checkPath(path,inodes,datas,name,fatherInodeIndex,fatherDataIndex)) return;
+    if(datas[fatherDataIndex].dirData.find(name)==datas[fatherDataIndex].dirData.end()){
+        cout<<"No such file!"<<endl;
+        return;
+    }
+    int inodeIndex=datas[fatherDataIndex].dirData[name];
+    datas[fatherDataIndex].dirData.erase(name);
+    inodes[inodeIndex].rNum--;
+    if(inodes[inodeIndex].rNum==0){
+        if(inodes[inodeIndex].addr!=-1){
+            datas[inodes[inodeIndex].addr].setData('n');
+            dataBitmap[inodes[inodeIndex].addr]=0;
+        }
+        inodeBitmap[inodeIndex]=0;
+        inodes[inodeIndex].setInode('n',0);
+    }
+    outputInfo(inodes,datas);
+}
 
 int main(int argc, char const *argv[]){
     string name=string(argv[1]);
     int n=atoi(argv[2]);
     int m=atoi(argv[3]);
-    vector<Inode> inodes;
-    vector<Data> datas;
-    for(int i=0;i<n;i++)
-        inodes.push_back(Inode());
-    for(int i=0;i<m;i++)
-        datas.push_back(Data());
+    vector<Inode> inodes(n);
+    vector<Data> datas(m);
+
     //init
     inodeBitmap[0]=1;
     dataBitmap[0]=1;
     inodes[0].setInode('d',0);
     datas[0].setData('d',0,0);
     outputInfo(inodes,datas);
-
     ifstream fin("operation.txt");
     string line;
 
@@ -184,110 +236,23 @@ int main(int argc, char const *argv[]){
         stringstream ss(line);
         string op;
         getline(ss,op);
-        cout<<op<<endl;
-        regex mkdir("mkdir\\(\"(.*)\"\\)");
-        regex creat("creat\\(\"(.*)\"\\)");
-        regex write("fd=open\\(\"(.*)\"\\);\\s*write\\(fd\\);\\s*close\\(fd\\);");
-        regex link("link\\(\"(.*)\",\\s*\"(.*)\"\\)");
-        regex unlink("unlink\\(\"(.*)\"\\)");
+        cout<<endl<<op<<endl;
         smatch result;
-        //TODO 封装成函数 去掉set函数
-        if(regex_match(op,result,mkdir)){
-            regex path("/([^/\"]*)");
-            string name;
-            int fatherDataIndex=0,inodeIndex=-1,dataIndex=-1;
-            if(!checkPath(result[1],inodes,datas,name,fatherDataIndex))
-                continue;
-            if(!findFreeInode(inodeIndex,n)||!findFreeData(dataIndex,m))
-                continue;
-            if(datas[fatherDataIndex].dirData.find(name)!=datas[fatherDataIndex].dirData.end()){
-                cout<<"Directory already exists!"<<endl;
-                continue;
-            }
-            setDirInfo(inodeIndex,dataIndex,fatherDataIndex,name,inodes,datas);
-            
-        }
-        else if(regex_match(op,result,creat)){
-            regex path("/([^/\"]*)");
-            string name;
-            int fatherDataIndex=0,inodeIndex=-1;
-            if(!checkPath(result[1],inodes,datas,name,fatherDataIndex))
-                continue;
-            if(!findFreeInode(inodeIndex,n))
-                continue;
-            if(datas[fatherDataIndex].dirData.find(name)!=datas[fatherDataIndex].dirData.end()){
-                cout<<"File already exists!"<<endl;
-                continue;
-            }
-            setFileInfo(inodeIndex,fatherDataIndex,name,inodes,datas);
-        }
-        else if(regex_match(op,result,write)){
-            regex path("/([^/\"]*)");
-            string name;
-            int fatherDataIndex=0,dataIndex=-1;
-            if(!checkPath(result[1],inodes,datas,name,fatherDataIndex))
-                continue;
-                //TODO findFreeData
-            if(!findFreeData(dataIndex,m))
-                continue;
-            if(datas[fatherDataIndex].dirData.find(name)==datas[fatherDataIndex].dirData.end()){
-                cout<<"No such file!"<<endl;
-                continue;
-            }
-            int inodeIndex=datas[fatherDataIndex].dirData[name];
-            if(inodes[inodeIndex].type=='d'){
-                cout<<"Not a file!"<<endl;
-                continue;
-            }
-            inodes[inodeIndex].addr=dataIndex;
-            dataBitmap[dataIndex]=1;
-            datas[dataIndex].setData('f',"u");
-        }
-        else if(regex_match(op,result,link)){
-            regex path("/([^/\"]*)");
-            string name;
-            int fatherDataIndex=0,dataIndex=-1;
-            if(!checkPath(result[1],inodes,datas,name,fatherDataIndex))
-                continue;
-            if(datas[fatherDataIndex].dirData.find(name)==datas[fatherDataIndex].dirData.end()){
-                cout<<"No such file!"<<endl;
-                continue;
-            }
-            int inodeIndex=datas[fatherDataIndex].dirData[name];
-            if(!checkPath(result[2],inodes,datas,name,fatherDataIndex))
-                continue;
-
-            datas[fatherDataIndex].dirData.insert(make_pair(name,inodeIndex));
-            inodes[inodeIndex].rNum++;
-        }
-        else if(regex_match(op,result,unlink)){
-            regex path("/([^/\"]*)");
-            string name;
-            int fatherDataIndex=0,dataIndex=-1;
-            if(!checkPath(result[1],inodes,datas,name,fatherDataIndex))
-                continue;
-            
-            if(datas[fatherDataIndex].dirData.find(name)==datas[fatherDataIndex].dirData.end()){
-                cout<<"No such file!"<<endl;
-                continue;
-            }
-            int inodeIndex=datas[fatherDataIndex].dirData[name];
-            datas[fatherDataIndex].dirData.erase(name);
-            inodes[inodeIndex].rNum--;
-            if(inodes[inodeIndex].rNum==0){
-                if(inodes[inodeIndex].addr!=-1){
-                    datas[inodes[inodeIndex].addr].setData('n');
-                    dataBitmap[inodes[inodeIndex].addr]=0;
-                }
-                inodeBitmap[inodeIndex]=0;
-                inodes[inodeIndex].setInode('n',0);
-            }
-        }
+        if(regex_match(op,result,regex("mkdir\\(\"(.*)\"\\)")))
+            mkdir(result[1],inodes,datas,n,m);
+        else if(regex_match(op,result,regex("creat\\(\"(.*)\"\\)")))
+            creat(result[1],inodes,datas,n,m);
+        else if(regex_match(op,result,regex("fd=open\\(\"(.*)\"\\);\\s*write\\(fd\\);\\s*close\\(fd\\);")))
+            write(result[1],inodes,datas,n,m);
+        else if(regex_match(op,result,regex("link\\(\"(.*)\",\\s*\"(.*)\"\\)")))
+            link(result[1],result[2],inodes,datas,n,m);
+        else if(regex_match(op,result,regex("unlink\\(\"(.*)\"\\)")))
+            unlink(result[1],inodes,datas,n,m);
         else{
             cout<<"Invalid operation!"<<endl;
             continue;
         }
-        outputInfo(inodes,datas);
+        //outputInfo(inodes,datas);
     }
     return 0;
 }

@@ -1,4 +1,5 @@
 mkdir("/a")
+//mkdir("/c/a")
 mkdir("/a")
 mkdir("/a/e")
 creat("/a/b")
